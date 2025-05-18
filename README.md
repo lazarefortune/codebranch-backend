@@ -1,4 +1,4 @@
-# CodeBranch - Frontend
+# CodeBranch - Backend
 
 **CodeBranch** est une application web permettant aux développeurs de centraliser leurs liens importants (GitHub, portfolio, blog, etc.) dans un espace simple, élégant et personnalisable.
 
