@@ -22,7 +22,7 @@ pnpm dev
 $ pnpm run start
 
 # watch mode
-$ pnpm run start:dev
+$ pnpm run start:dev0
 
 # production mode
 $ pnpm run start:prod
