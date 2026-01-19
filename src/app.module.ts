@@ -9,6 +9,7 @@ import { GlobalExceptionFilter } from './common/filters';
 import { AuthModule, JwtAuthGuard } from './modules/auth';
 import { UsersModule } from './modules/users';
 import { HealthModule } from './modules/health';
+import { MailerModule } from './common/mailer';
 
 @Module({
   imports: [
@@ -21,8 +22,8 @@ import { HealthModule } from './modules/health';
     // Rate limiting
     ThrottlerModule.forRoot([
       {
-        ttl: 60000, // 1 minute
-        limit: 100, // 100 requests per minute by default
+        ttl: 60000, 
+        limit: 100, 
       },
     ]),
 
@@ -33,9 +34,9 @@ import { HealthModule } from './modules/health';
     AuthModule,
     UsersModule,
     HealthModule,
+    MailerModule
   ],
   providers: [
-    // Global exception filter
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,

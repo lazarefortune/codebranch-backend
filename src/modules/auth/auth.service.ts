@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { nanoid } from 'nanoid';
 import { PrismaService } from '@/common/prisma';
+import { MailerService } from '@/common/mailer';
 import {
   EmailAlreadyExistsException,
   InvalidCredentialsException,
@@ -31,6 +32,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mailerService: MailerService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -238,6 +240,6 @@ export class AuthService {
       data: { userId, code, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
     });
 
-    console.log('[DEV] Verification code for ' + email + ': ' + code);
+    await this.mailerService.sendVerificationEmail(email, code);
   }
 }
