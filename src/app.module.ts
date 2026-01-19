@@ -10,6 +10,7 @@ import { AuthModule, JwtAuthGuard } from './modules/auth';
 import { UsersModule } from './modules/users';
 import { HealthModule } from './modules/health';
 import { MailerModule } from './common/mailer';
+import { PagesModule } from './modules/pages';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { MailerModule } from './common/mailer';
 
     // Feature modules
     AuthModule,
+    PagesModule,
     UsersModule,
     HealthModule,
     MailerModule

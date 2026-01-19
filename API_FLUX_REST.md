@@ -154,4 +154,4 @@ Phase 2 (Users) → Phase 3 (Pages) → Phase 5 (Blocks) → Phase 6 (Public) �
               │  • Cookie supprimé           │
               │  • Access token invalide     │
               │    (côté client)             │
-              └───────────────────────────────┘
+              └──────────────────────────────|
