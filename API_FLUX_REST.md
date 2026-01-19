@@ -61,3 +61,97 @@ Phase 2 (Users) → Phase 3 (Pages) → Phase 5 (Blocks) → Phase 6 (Public) �
 
 
 
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           FLUX D'AUTHENTIFICATION                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              INSCRIPTION
+                              ──────────
+    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+    │ Register │───▶│  Email   │───▶│  User    │───▶│  Verify  │
+    │   POST   │    │  envoyé  │    │  saisit  │    │  Email   │
+    │ /register│    │ (code 6  │    │  le code │    │   POST   │
+    └──────────┘    │ chiffres)│    └──────────┘    └────┬─────┘
+                    └──────────┘                         │
+                                                         │ ✅ Compte activé
+                                                         ▼
+                              CONNEXION
+                              ─────────
+                         ┌──────────┐
+                         │  Login   │
+                         │   POST   │
+                         │  /login  │
+                         └────┬─────┘
+                              │
+                              ▼
+              ┌───────────────────────────────┐
+              │    Retourne 2 tokens :        │
+              │  • accessToken (15 min)       │
+              │  • refreshToken (cookie 7j)   │
+              └───────────────┬───────────────┘
+                              │
+                              ▼
+                      UTILISATION API
+                      ──────────────
+              ┌───────────────────────────────┐
+              │   Requêtes avec Header :      │
+              │   Authorization: Bearer xxx   │
+              └───────────────┬───────────────┘
+                              │
+              ┌───────────────┴───────────────┐
+              │                               │
+              ▼                               ▼
+     ┌─────────────┐                 ┌─────────────┐
+     │ Token OK ✅ │                 │Token expiré │
+     │ Accès API   │                 │   ⏰ 401    │
+     └─────────────┘                 └──────┬──────┘
+                                            │
+                                            ▼
+                              RAFRAÎCHISSEMENT
+                              ───────────────
+                         ┌──────────┐
+                         │ Refresh  │
+                         │   POST   │
+                         │ /refresh │
+                         └────┬─────┘
+                              │
+              ┌───────────────┴───────────────┐
+              │                               │
+              ▼                               ▼
+     ┌─────────────┐                 ┌─────────────┐
+     │ Refresh OK  │                 │Refresh expiré│
+     │ Nouveaux    │                 │   → Login   │
+     │  tokens ✅  │                 │   requis 🔒 │
+     └─────────────┘                 └─────────────┘
+
+
+                           MOT DE PASSE OUBLIÉ
+                           ──────────────────
+    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+    │  Forgot  │───▶│  Email   │───▶│  User    │───▶│  Reset   │
+    │ Password │    │  envoyé  │    │  clique  │    │ Password │
+    │   POST   │    │ (lien)   │    │  le lien │    │   POST   │
+    └──────────┘    └──────────┘    └──────────┘    └────┬─────┘
+                                                         │
+                                                         ▼
+                                                  ┌──────────┐
+                                                  │  Login   │
+                                                  │ possible │
+                                                  └──────────┘
+
+
+                              DÉCONNEXION
+                              ───────────
+                         ┌──────────┐
+                         │  Logout  │
+                         │   POST   │
+                         │ /logout  │
+                         └────┬─────┘
+                              │
+                              ▼
+              ┌───────────────────────────────┐
+              │  • Refresh token révoqué     │
+              │  • Cookie supprimé           │
+              │  • Access token invalide     │
+              │    (côté client)             │
+              └───────────────────────────────┘
