@@ -1,0 +1,55 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+
+import { appConfig, databaseConfig, jwtConfig, mailConfig } from './config';
+import { PrismaModule } from './common/prisma';
+import { GlobalExceptionFilter } from './common/filters';
+import { AuthModule, JwtAuthGuard } from './modules/auth';
+import { UsersModule } from './modules/users';
+import { HealthModule } from './modules/health';
+
+@Module({
+  imports: [
+    // Config
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [appConfig, databaseConfig, jwtConfig, mailConfig],
+    }),
+
+    // Rate limiting
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 1 minute
+        limit: 100, // 100 requests per minute by default
+      },
+    ]),
+
+    // Database
+    PrismaModule,
+
+    // Feature modules
+    AuthModule,
+    UsersModule,
+    HealthModule,
+  ],
+  providers: [
+    // Global exception filter
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
+    // Global JWT guard
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    // Global throttler guard
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
+})
+export class AppModule {}
