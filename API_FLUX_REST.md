@@ -155,3 +155,11 @@ Phase 2 (Users) → Phase 3 (Pages) → Phase 5 (Blocks) → Phase 6 (Public) �
               │  • Access token invalide     │
               │    (côté client)             │
               └──────────────────────────────|
+
+
+
+
+              User not existe 
+              et password invalid quand je supprime le compte 
+              dans les exception 
+              

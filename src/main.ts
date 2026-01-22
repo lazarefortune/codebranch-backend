@@ -7,7 +7,7 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('app.port') || 3001;
+  const port = configService.get<number>('app.port') || 4000;
 
   // Global API prefix
   app.setGlobalPrefix('api/v1');
@@ -21,13 +21,13 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: configService.get<string>('app.frontendUrl') || 'http://localhost:3000',
+    origin: configService.get<string>('app.frontendUrl') || 'http://localhost:5173',
     credentials: true,
   });
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('CodeBranch API')
-    .setDescription('API for CodeBranch - Online Code Learning Platform')
+    .setDescription('CodeBranch API documentation')
     .setVersion('1.0')
     .addBearerAuth()
     .build();

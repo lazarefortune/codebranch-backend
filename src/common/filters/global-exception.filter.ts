@@ -41,7 +41,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message = (responseObj.message as string) || exception.message;
 
         if (Array.isArray(responseObj.message)) {
-          // class-validator errors
           details = responseObj.message.map((msg: string) => ({
             field: this.extractFieldFromMessage(msg),
             message: msg,

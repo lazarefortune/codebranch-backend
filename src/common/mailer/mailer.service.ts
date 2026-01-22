@@ -82,7 +82,7 @@ export class MailerService {
   }
 
   async sendPasswordResetEmail(email: string, token: string): Promise<void> {
-    const frontendUrl = this.configService.get<string>('app.frontendUrl') || 'http://localhost:3000';
+    const frontendUrl = this.configService.get<string>('app.frontendUrl') || 'http://localhost:5173';
     const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
     const html = this.getPasswordResetEmailTemplate(resetUrl);
 
@@ -121,23 +121,12 @@ export class MailerService {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CodeBranch</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .card { background: #ffffff; border-radius: 12px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .logo { text-align: center; margin-bottom: 30px; }
-    .logo h1 { color: #6366f1; margin: 0; font-size: 28px; }
-    .code-box { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 20px 40px; border-radius: 8px; text-align: center; margin: 30px 0; }
-    .btn { display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white !important; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; margin: 20px 0; }
-    .btn:hover { opacity: 0.9; }
-    .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 14px; }
-    .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 20px 0; font-size: 14px; }
-  </style>
 </head>
 <body>
   <div class="container">
     <div class="card">
       <div class="logo">
-        <h1>🌿 CodeBranch</h1>
+        <h1>ICI on mettra le logo</h1>
       </div>
       ${content}
       <div class="footer">
@@ -166,16 +155,12 @@ export class MailerService {
 
   private getPasswordResetEmailTemplate(resetUrl: string): string {
     const content = `
-      <h2 style="text-align: center; color: #1f2937;">Réinitialisation de mot de passe</h2>
       <p>Bonjour,</p>
       <p>Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe:</p>
       <div style="text-align: center;">
         <a href="${resetUrl}" class="btn">Réinitialiser mon mot de passe</a>
       </div>
-      <p style="font-size: 14px; color: #666;">Ou copiez ce lien dans votre navigateur:<br><a href="${resetUrl}" style="color: #6366f1; word-break: break-all;">${resetUrl}</a></p>
-      <div class="warning">
-        ⏱️ Ce lien expire dans <strong>1 heure</strong>. Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.
-      </div>
+      <p>Ou copiez ce lien dans votre navigateur:<br><a>${resetUrl}</a></p>
     `;
     return this.getBaseTemplate(content);
   }
@@ -183,20 +168,10 @@ export class MailerService {
   private getWelcomeEmailTemplate(name?: string): string {
     const greeting = name ? `Bonjour ${name},` : 'Bonjour,';
     const content = `
-      <h2 style="text-align: center; color: #1f2937;">Bienvenue sur CodeBranch! 🎉</h2>
-      <p>${greeting}</p>
-      <p>Votre compte a été créé avec succès! Vous faites maintenant partie de la communauté CodeBranch.</p>
-      <p>Avec CodeBranch, vous pouvez:</p>
-      <ul style="color: #4b5563;">
-        <li>📚 Apprendre à coder avec des cours interactifs</li>
-        <li>💻 Pratiquer avec des exercices en temps réel</li>
-        <li>🏆 Suivre votre progression et gagner des badges</li>
-        <li>👥 Rejoindre une communauté de développeurs</li>
-      </ul>
-      <div style="text-align: center;">
-        <a href="${this.configService.get<string>('app.frontendUrl') || 'http://localhost:3000'}" class="btn">Commencer à apprendre</a>
-      </div>
-      <p>Bonne programmation! 🚀</p>
+     <div>
+     <p>${greeting}</p>
+     <p>Ceci est un message pour le test </p>
+     </div>
     `;
     return this.getBaseTemplate(content);
   }
