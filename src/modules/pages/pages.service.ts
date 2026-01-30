@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma';
 import { ForbiddenException } from '@/common/exceptions';
 import { PageNotFoundException } from './exceptions';
-import { CreatePageDto } from './dto';
+import { CreatePageDto, PaginationQueryDto } from './dto';
 import { nanoid } from 'nanoid';
 
 @Injectable()
@@ -10,22 +10,40 @@ export class PagesService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * List all pages for the current user
+   * List all pages for the current user with pagination
    */
-  async findAllByUser(userId: string) {
-    const pages = await this.prisma.page.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        username: true,
-        isPublic: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+  async findAllByUser(userId: string, query: PaginationQueryDto) {
+    const { page = 1, limit = 20 } = query;
+    const skip = (page - 1) * limit;
 
-    return { pages };
+    const [items, totalItems] = await Promise.all([
+      this.prisma.page.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          username: true,
+          isPublic: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      this.prisma.page.count({ where: { userId } }),
+    ]);
+
+    const totalPages = Math.ceil(totalItems / limit);
+
+    return {
+      items,
+      meta: {
+        page,
+        limit,
+        totalItems,
+        totalPages,
+      },
+    };
   }
 
   /**

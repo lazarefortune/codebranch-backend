@@ -5,6 +5,7 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -14,10 +15,11 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { CurrentUser } from '@/common/decorators';
 import { PagesService } from './pages.service';
-import { CreatePageDto } from './dto';
+import { CreatePageDto, PaginationQueryDto } from './dto';
 
 @ApiTags('Pages')
 @ApiBearerAuth()
@@ -27,16 +29,21 @@ export class PagesController {
 
   @Get()
   @ApiOperation({ summary: 'List all pages for current user' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page' })
   @ApiResponse({
     status: 200,
-    description: 'Returns list of pages',
+    description: 'Returns list of pages with pagination',
   })
   @ApiResponse({
     status: 401,
     description: 'Unauthorized',
   })
-  async findAll(@CurrentUser('id') userId: string) {
-    return this.pagesService.findAllByUser(userId);
+  async findAll(
+    @CurrentUser('id') userId: string,
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.pagesService.findAllByUser(userId, query);
   }
 
   @Post()

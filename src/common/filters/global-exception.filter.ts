@@ -99,8 +99,30 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   }
 
   private extractFieldFromMessage(message: string): string {
-    // Try to extract field name from class-validator message
-    const match = message.match(/^(\w+)\s/);
-    return match ? match[1].toLowerCase() : 'unknown';
+    const patterns = [
+      /^([a-zA-Z]+) must/i,
+      /^([a-zA-Z]+) should/i,
+      /^([a-zA-Z]+) is /i,
+      /^Please provide a valid ([a-zA-Z]+)/i,
+      /^Invalid ([a-zA-Z]+)/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = message.match(pattern);
+      if (match) {
+        return match[1].toLowerCase();
+      }
+    }
+
+    // Fallback: try to find common field names in the message
+    const commonFields = ['email', 'password', 'username', 'name', 'title'];
+    const lowerMessage = message.toLowerCase();
+    for (const field of commonFields) {
+      if (lowerMessage.includes(field)) {
+        return field;
+      }
+    }
+
+    return 'field';
   }
 }
