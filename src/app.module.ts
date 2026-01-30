@@ -11,6 +11,9 @@ import { UsersModule } from './modules/users';
 import { HealthModule } from './modules/health';
 import { MailerModule } from './common/mailer';
 import { PagesModule } from './modules/pages';
+import { TechnologiesModule } from './modules/technologies';
+import { UsernamesModule } from './modules/usernames';
+import { PublicPagesModule } from './modules/public-pages';
 
 @Module({
   imports: [
@@ -36,7 +39,10 @@ import { PagesModule } from './modules/pages';
     PagesModule,
     UsersModule,
     HealthModule,
-    MailerModule
+    MailerModule,
+    TechnologiesModule,
+    UsernamesModule,
+    PublicPagesModule,
   ],
   providers: [
     {

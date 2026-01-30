@@ -1,13 +1,103 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/common/prisma';
 import { ForbiddenException } from '@/common/exceptions';
-import { PageNotFoundException } from './exceptions';
-import { CreatePageDto, PaginationQueryDto } from './dto';
+import {
+  PageNotFoundException,
+  UsernameTakenException,
+  BlockNotFoundException,
+  InvalidBlockTypeException,
+  HeaderRequiredException,
+  MultipleHeadersNotAllowedException,
+  CannotDeleteHeaderException,
+} from './exceptions';
+import {
+  CreatePageDto,
+  PaginationQueryDto,
+  UpdateUsernameDto,
+  CreateBlockDto,
+  UpdateBlockDto,
+  BulkReplaceBlocksDto,
+  BlockType,
+} from './dto';
 import { nanoid } from 'nanoid';
 
 @Injectable()
 export class PagesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  // ============================================
+  // PRIVATE HELPERS - Guard clauses (fail fast)
+  // ============================================
+
+  /**
+   * Get page or throw PageNotFoundException
+   */
+  private async getPageOrFail(pageId: string) {
+    const page = await this.prisma.page.findUnique({ where: { id: pageId } });
+    if (!page) throw new PageNotFoundException();
+    return page;
+  }
+
+  /**
+   * Get page with blocks or throw PageNotFoundException
+   */
+  private async getPageWithBlocksOrFail(pageId: string) {
+    const page = await this.prisma.page.findUnique({
+      where: { id: pageId },
+      include: { blocks: { orderBy: { order: 'asc' } } },
+    });
+    if (!page) throw new PageNotFoundException();
+    return page;
+  }
+
+  /**
+   * Verify user owns the page or throw ForbiddenException
+   */
+  private assertOwnership(page: { userId: string }, userId: string) {
+    if (page.userId !== userId) throw new ForbiddenException();
+  }
+
+  /**
+   * Get block or throw BlockNotFoundException
+   */
+  private async getBlockOrFail(blockId: string, pageId: string) {
+    const block = await this.prisma.block.findUnique({ where: { id: blockId } });
+    if (!block || block.pageId !== pageId) throw new BlockNotFoundException();
+    return block;
+  }
+
+  /**
+   * Format page response (DRY)
+   */
+  private formatPageResponse(page: {
+    id: string;
+    username: string;
+    isPublic: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    blocks: { id: string; type: string; order: number; data: unknown }[];
+  }) {
+    return {
+      page: {
+        id: page.id,
+        username: page.username,
+        isPublic: page.isPublic,
+        createdAt: page.createdAt,
+        updatedAt: page.updatedAt,
+        blocks: page.blocks.map((b) => ({
+          id: b.id,
+          type: b.type,
+          order: b.order,
+          data: b.data,
+        })),
+      },
+    };
+  }
+
+  // ============================================
+  // PUBLIC METHODS
+  // ============================================
 
   /**
    * List all pages for the current user with pagination
@@ -72,87 +162,28 @@ export class PagesService {
           },
         },
       },
-      include: {
-        blocks: {
-          orderBy: { order: 'asc' },
-        },
-      },
+      include: { blocks: { orderBy: { order: 'asc' } } },
     });
 
-    return {
-      page: {
-        id: page.id,
-        username: page.username,
-        isPublic: page.isPublic,
-        createdAt: page.createdAt,
-        updatedAt: page.updatedAt,
-        blocks: page.blocks.map((block) => ({
-          id: block.id,
-          type: block.type,
-          order: block.order,
-          data: block.data,
-        })),
-      },
-    };
+    return this.formatPageResponse(page);
   }
 
   /**
    * Get a page with all its blocks
    */
   async findOne(userId: string, pageId: string) {
-    const page = await this.prisma.page.findUnique({
-      where: { id: pageId },
-      include: {
-        blocks: {
-          orderBy: { order: 'asc' },
-        },
-      },
-    });
-
-    if (!page) {
-      throw new PageNotFoundException();
-    }
-
-    if (page.userId !== userId) {
-      throw new ForbiddenException();
-    }
-
-    return {
-      page: {
-        id: page.id,
-        username: page.username,
-        isPublic: page.isPublic,
-        createdAt: page.createdAt,
-        updatedAt: page.updatedAt,
-        blocks: page.blocks.map((block) => ({
-          id: block.id,
-          type: block.type,
-          order: block.order,
-          data: block.data,
-        })),
-      },
-    };
+    const page = await this.getPageWithBlocksOrFail(pageId);
+    this.assertOwnership(page, userId);
+    return this.formatPageResponse(page);
   }
 
   /**
    * Delete a page and all its blocks
    */
   async delete(userId: string, pageId: string) {
-    const page = await this.prisma.page.findUnique({
-      where: { id: pageId },
-    });
-
-    if (!page) {
-      throw new PageNotFoundException();
-    }
-
-    if (page.userId !== userId) {
-      throw new ForbiddenException();
-    }
-
-    await this.prisma.page.delete({
-      where: { id: pageId },
-    });
+    const page = await this.getPageOrFail(pageId);
+    this.assertOwnership(page, userId);
+    await this.prisma.page.delete({ where: { id: pageId } });
   }
 
   /**
@@ -171,5 +202,129 @@ export class PagesService {
     }
 
     return username;
+  }
+
+  /**
+   * Update page username
+   */
+  async updateUsername(userId: string, pageId: string, dto: UpdateUsernameDto) {
+    const page = await this.getPageOrFail(pageId);
+    this.assertOwnership(page, userId);
+
+    const normalizedUsername = dto.username.toLowerCase().trim();
+    const existingPage = await this.prisma.page.findUnique({ where: { username: normalizedUsername } });
+    
+    if (existingPage && existingPage.id !== pageId) throw new UsernameTakenException();
+
+    const updatedPage = await this.prisma.page.update({
+      where: { id: pageId },
+      data: { username: normalizedUsername },
+      select: { id: true, username: true, isPublic: true, createdAt: true, updatedAt: true },
+    });
+
+    return { page: updatedPage };
+  }
+
+  // ============================================
+  // BLOCKS METHODS
+  // ============================================
+
+  /**
+   * Create a new block
+   */
+  async createBlock(userId: string, pageId: string, dto: CreateBlockDto) {
+    const page = await this.getPageOrFail(pageId);
+    this.assertOwnership(page, userId);
+
+    if (!Object.values(BlockType).includes(dto.type as BlockType)) {
+      throw new InvalidBlockTypeException();
+    }
+
+    const block = await this.prisma.block.create({
+      data: { pageId, type: dto.type, order: dto.order, data: dto.data as Prisma.InputJsonValue },
+      select: { id: true, type: true, order: true, data: true, createdAt: true, updatedAt: true },
+    });
+
+    return { block };
+  }
+
+  /**
+   * Update a block
+   */
+  async updateBlock(userId: string, pageId: string, blockId: string, dto: UpdateBlockDto) {
+    const page = await this.getPageOrFail(pageId);
+    this.assertOwnership(page, userId);
+    await this.getBlockOrFail(blockId, pageId);
+
+    const updatedBlock = await this.prisma.block.update({
+      where: { id: blockId },
+      data: {
+        ...(dto.order !== undefined && { order: dto.order }),
+        ...(dto.data !== undefined && { data: dto.data as Prisma.InputJsonValue }),
+      },
+      select: { id: true, type: true, order: true, data: true, createdAt: true, updatedAt: true },
+    });
+
+    return { block: updatedBlock };
+  }
+
+  /**
+   * Delete a block
+   */
+  async deleteBlock(userId: string, pageId: string, blockId: string) {
+    const page = await this.getPageOrFail(pageId);
+    this.assertOwnership(page, userId);
+    const block = await this.getBlockOrFail(blockId, pageId);
+
+    if (block.type === 'header') throw new CannotDeleteHeaderException();
+
+    await this.prisma.block.delete({ where: { id: blockId } });
+  }
+
+  /**
+   * Bulk replace all blocks
+   */
+  async bulkReplaceBlocks(userId: string, pageId: string, dto: BulkReplaceBlocksDto) {
+    const page = await this.getPageOrFail(pageId);
+    this.assertOwnership(page, userId);
+
+    // Validate: exactly one header block
+    const headerCount = dto.blocks.filter((b) => b.type === BlockType.HEADER).length;
+    if (headerCount === 0) throw new HeaderRequiredException();
+    if (headerCount > 1) throw new MultipleHeadersNotAllowedException();
+
+    // Delete all existing blocks and create new ones in a transaction
+    const blocks = await this.prisma.$transaction(async (tx) => {
+      // Delete all existing blocks
+      await tx.block.deleteMany({
+        where: { pageId },
+      });
+
+      // Create new blocks
+      const createdBlocks = await Promise.all(
+        dto.blocks.map((blockData) =>
+          tx.block.create({
+            data: {
+              pageId,
+              type: blockData.type,
+              order: blockData.order,
+              data: blockData.data as Prisma.InputJsonValue,
+            },
+            select: {
+              id: true,
+              type: true,
+              order: true,
+              data: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          }),
+        ),
+      );
+
+      return createdBlocks;
+    });
+
+    return { blocks };
   }
 }
