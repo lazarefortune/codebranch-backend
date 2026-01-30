@@ -141,7 +141,7 @@ export class MailerService {
 
   private getVerificationEmailTemplate(code: string): string {
     const content = `
-      <h2 style="text-align: center; color: #1f2937;">Vérifiez votre adresse email</h2>
+      <h2>Vérifiez votre adresse email</h2>
       <p>Bonjour,</p>
       <p>Merci de vous être inscrit sur CodeBranch! Pour activer votre compte, utilisez le code de vérification ci-dessous:</p>
       <div class="code-box">${code}</div>
