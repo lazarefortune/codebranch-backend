@@ -15,8 +15,8 @@ import {
   TokenInvalidException,
   TokenExpiredException,
   AlreadyVerifiedException,
-  UserNotFoundException,
-} from '@/common/exceptions';
+} from './exceptions';
+import { UserNotFoundException } from '@/modules/users/exceptions';
 import {
   RegisterDto,
   LoginDto,

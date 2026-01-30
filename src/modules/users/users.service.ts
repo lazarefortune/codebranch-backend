@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { PrismaService } from '@/common/prisma';
-import { InvalidCredentialsException } from '@/common/exceptions';
+import { InvalidCredentialsException } from '@/modules/auth/exceptions';
 import { DeleteAccountDto } from './dto';
 
 @Injectable()

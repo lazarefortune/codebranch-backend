@@ -1,5 +1,7 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma';
+import { ForbiddenException } from '@/common/exceptions';
+import { PageNotFoundException } from './exceptions';
 import { CreatePageDto } from './dto';
 import { nanoid } from 'nanoid';
 
@@ -90,11 +92,11 @@ export class PagesService {
     });
 
     if (!page) {
-      throw new NotFoundException('Page not found');
+      throw new PageNotFoundException();
     }
 
     if (page.userId !== userId) {
-      throw new ForbiddenException('You do not have access to this page');
+      throw new ForbiddenException();
     }
 
     return {
@@ -123,11 +125,11 @@ export class PagesService {
     });
 
     if (!page) {
-      throw new NotFoundException('Page not found');
+      throw new PageNotFoundException();
     }
 
     if (page.userId !== userId) {
-      throw new ForbiddenException('You do not have access to this page');
+      throw new ForbiddenException();
     }
 
     await this.prisma.page.delete({
