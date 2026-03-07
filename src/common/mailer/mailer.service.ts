@@ -16,13 +16,14 @@ export class MailerService {
   private readonly logger = new Logger(MailerService.name);
   private transporter?: Transporter<SMTPTransport.SentMessageInfo>;
   private readonly from: string;
-  private readonly isDev: boolean;
+  private readonly allowConsoleFallback: boolean;
 
   constructor(private readonly configService: ConfigService) {
     this.from =
       this.configService.get<string>('mail.from') || 'noreply@codebranch.dev';
-    this.isDev =
-      this.configService.get<string>('app.nodeEnv') === 'development';
+    const nodeEnv = this.configService.get<string>('app.nodeEnv');
+    this.allowConsoleFallback =
+      nodeEnv === 'development' || nodeEnv === 'test';
 
     const host = this.configService.get<string>('mail.smtpHost');
     const port = this.configService.get<number>('mail.smtpPort');
@@ -52,9 +53,9 @@ export class MailerService {
     // In development without SMTP, log mock email output.
     // In non-dev, fail fast to avoid silent delivery failures.
     if (!this.transporter) {
-      if (!this.isDev) {
+      if (!this.allowConsoleFallback) {
         const error = new Error('SMTP is not configured');
-        this.logger.error('SMTP is not configured in non-development mode');
+        this.logger.error('SMTP is not configured in production-like mode');
         throw error;
       }
 
@@ -77,8 +78,8 @@ export class MailerService {
       this.logger.log(`Email sent to ${to}: ${info.messageId}`);
     } catch (error: unknown) {
       this.logger.error(`Failed to send email to ${to}:`, error);
-      // Don't throw in dev mode
-      if (!this.isDev) {
+      // In development/test, keep the app running if SMTP fails.
+      if (!this.allowConsoleFallback) {
         throw error;
       }
     }
