@@ -113,10 +113,14 @@ export class MailerService {
   }
 
   private stripHtml(html: string): string {
-    return html
-      .replace(/<[^>]*>/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+    let result = html;
+    // Repeatedly remove HTML tags to handle nested/partial tags
+    let previous: string;
+    do {
+      previous = result;
+      result = result.replace(/<[^>]*>/g, '');
+    } while (result !== previous);
+    return result.replace(/\s+/g, ' ').trim();
   }
 
   // ========================================
