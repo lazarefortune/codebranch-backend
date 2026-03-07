@@ -66,7 +66,7 @@ describe('AuthController (e2e)', () => {
   let prisma: PrismaService;
 
   const testEmail = `auth-test-${Date.now()}@example.com`;
-  const testPassword = 'Aa1!xYz9';
+  const testPassword = `Aa!${Date.now()}z`;
 
   let userId = '';
   let accessToken = '';
