@@ -28,7 +28,7 @@ type PrismaMock = {
   };
   passwordReset: {
     create: jest.Mock<Promise<unknown>, [Record<string, unknown>]>;
-    findMany: jest.Mock;
+    findFirst: jest.Mock;
     update: jest.Mock;
   };
   $transaction: jest.Mock;
@@ -79,7 +79,7 @@ describe('AuthService', () => {
       },
       passwordReset: {
         create: jest.fn<Promise<unknown>, [Record<string, unknown>]>(),
-        findMany: jest.fn(),
+        findFirst: jest.fn(),
         update: jest.fn(),
       },
       $transaction: jest.fn(),

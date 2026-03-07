@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import { randomInt } from 'crypto';
+import { createHash, randomInt } from 'crypto';
 import { nanoid } from 'nanoid';
 import { PrismaService } from '@/common/prisma';
 import { MailerService } from '@/common/mailer';
@@ -216,11 +216,13 @@ export class AuthService {
 
     const token = nanoid(32);
     const tokenHash = await argon2.hash(token);
+    const tokenLookupHash = this.hashTokenForLookup(token);
 
     await this.prisma.passwordReset.create({
       data: {
         userId: user.id,
         tokenHash,
+        tokenLookupHash,
         expiresAt: new Date(Date.now() + 60 * 60 * 1000),
       },
     });
@@ -230,40 +232,23 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordDto) {
-    const passwordResets = await this.prisma.passwordReset.findMany({
-      where: { usedAt: null, expiresAt: { gt: new Date() } },
+    const tokenLookupHash = this.hashTokenForLookup(dto.token);
+    const resetCandidate = await this.prisma.passwordReset.findFirst({
+      where: { tokenLookupHash, usedAt: null },
       include: { user: true },
+      orderBy: { createdAt: 'desc' },
     });
 
-    type PasswordResetWithUser = (typeof passwordResets)[number];
-    let validReset: PasswordResetWithUser | null = null;
-
-    for (const reset of passwordResets) {
-      try {
-        if (await argon2.verify(reset.tokenHash, dto.token)) {
-          validReset = reset;
-          break;
-        }
-      } catch {
-        continue;
-      }
+    if (!resetCandidate) {
+      throw new TokenInvalidException();
     }
 
-    if (!validReset) {
-      const expiredResets = await this.prisma.passwordReset.findMany({
-        where: { usedAt: null, expiresAt: { lte: new Date() } },
-      });
+    if (resetCandidate.expiresAt < new Date()) {
+      throw new TokenExpiredException();
+    }
 
-      for (const reset of expiredResets) {
-        try {
-          if (await argon2.verify(reset.tokenHash, dto.token)) {
-            throw new TokenExpiredException();
-          }
-        } catch (e) {
-          if (e instanceof TokenExpiredException) throw e;
-          continue;
-        }
-      }
+    const isTokenValid = await argon2.verify(resetCandidate.tokenHash, dto.token);
+    if (!isTokenValid) {
       throw new TokenInvalidException();
     }
 
@@ -271,15 +256,15 @@ export class AuthService {
 
     await this.prisma.$transaction([
       this.prisma.passwordReset.update({
-        where: { id: validReset.id },
+        where: { id: resetCandidate.id },
         data: { usedAt: new Date() },
       }),
       this.prisma.user.update({
-        where: { id: validReset.userId },
+        where: { id: resetCandidate.userId },
         data: { passwordHash },
       }),
       this.prisma.refreshToken.updateMany({
-        where: { userId: validReset.userId, revokedAt: null },
+        where: { userId: resetCandidate.userId, revokedAt: null },
         data: { revokedAt: new Date() },
       }),
     ]);
@@ -322,5 +307,9 @@ export class AuthService {
     });
 
     await this.mailerService.sendVerificationEmail(email, code);
+  }
+
+  private hashTokenForLookup(token: string): string {
+    return createHash('sha256').update(token, 'utf8').digest('hex');
   }
 }

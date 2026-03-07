@@ -49,8 +49,15 @@ export class MailerService {
   async sendMail(options: SendMailOptions): Promise<void> {
     const { to, subject, html, text } = options;
 
-    // In development without SMTP, just log
+    // In development without SMTP, log mock email output.
+    // In non-dev, fail fast to avoid silent delivery failures.
     if (!this.transporter) {
+      if (!this.isDev) {
+        const error = new Error('SMTP is not configured');
+        this.logger.error('SMTP is not configured in non-development mode');
+        throw error;
+      }
+
       this.logger.log(`[DEV EMAIL] To: ${to}`);
       this.logger.log(`[DEV EMAIL] Subject: ${subject}`);
       this.logger.log(`[DEV EMAIL] Content: ${text || html}`);

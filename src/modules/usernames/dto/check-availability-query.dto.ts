@@ -7,11 +7,11 @@ export class CheckAvailabilityQueryDto {
     description: 'Username to check',
   })
   @IsString()
-  @MinLength(1)
+  @MinLength(3, { message: 'Username must be at least 3 characters long' })
   @MaxLength(30)
-  @Matches(/^[a-zA-Z0-9._-]+$/, {
+  @Matches(/^[a-z0-9_-]+$/, {
     message:
-      'username can only contain letters, numbers, dots, underscores and hyphens',
+      'Username can only contain lowercase letters, numbers, hyphens and underscores',
   })
   username: string;
 }
