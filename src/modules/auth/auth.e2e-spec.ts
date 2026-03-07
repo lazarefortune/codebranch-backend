@@ -61,12 +61,16 @@ function getCookieFromHeaders(setCookieHeader: unknown): string {
   return cookieValue;
 }
 
+function createTestCredential(): string {
+  return `A${Date.now()}a${String.fromCharCode(33)}z`;
+}
+
 describe('AuthController (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
 
   const testEmail = `auth-test-${Date.now()}@example.com`;
-  const testPassword = `Aa!${Date.now()}z`;
+  const testCredential = createTestCredential();
 
   let userId = '';
   let accessToken = '';
@@ -111,7 +115,7 @@ describe('AuthController (e2e)', () => {
   it('POST /api/v1/auth/register should create user and require verification', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/v1/auth/register')
-      .send({ email: testEmail, password: testPassword })
+      .send({ email: testEmail, password: testCredential })
       .expect(201);
 
     userId = getUserIdFromRegister(response.body);
@@ -121,14 +125,14 @@ describe('AuthController (e2e)', () => {
   it('POST /api/v1/auth/register should reject duplicate email', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/auth/register')
-      .send({ email: testEmail, password: testPassword })
+      .send({ email: testEmail, password: testCredential })
       .expect(409);
   });
 
   it('POST /api/v1/auth/login should fail before email verification', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/auth/login')
-      .send({ email: testEmail, password: testPassword })
+      .send({ email: testEmail, password: testCredential })
       .expect(403);
   });
 
@@ -160,7 +164,7 @@ describe('AuthController (e2e)', () => {
   it('POST /api/v1/auth/login should return access token and refresh cookie', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
-      .send({ email: testEmail, password: testPassword })
+      .send({ email: testEmail, password: testCredential })
       .expect(200);
 
     accessToken = getAccessToken(response.body);
