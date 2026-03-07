@@ -41,11 +41,14 @@ export class JwtRefreshStrategy extends PassportStrategy(
   validate(
     request: Request,
     payload: JwtPayload,
-  ): { id: string; email: string; refreshToken?: string } | null {
+  ): { id: string; email: string; refreshToken: string } | null {
     if (payload.type !== 'refresh') {
       return null;
     }
     const refreshToken = getRefreshCookie(request);
+    if (!refreshToken) {
+      return null;
+    }
     return {
       id: payload.sub,
       email: payload.email,
