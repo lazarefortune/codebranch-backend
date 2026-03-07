@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { Transporter } from 'nodemailer';
+import SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 export interface SendMailOptions {
   to: string;
@@ -13,13 +14,15 @@ export interface SendMailOptions {
 @Injectable()
 export class MailerService {
   private readonly logger = new Logger(MailerService.name);
-  private transporter: Transporter;
+  private transporter?: Transporter<SMTPTransport.SentMessageInfo>;
   private readonly from: string;
   private readonly isDev: boolean;
 
   constructor(private readonly configService: ConfigService) {
-    this.from = this.configService.get<string>('mail.from') || 'noreply@codebranch.dev';
-    this.isDev = this.configService.get<string>('app.nodeEnv') === 'development';
+    this.from =
+      this.configService.get<string>('mail.from') || 'noreply@codebranch.dev';
+    this.isDev =
+      this.configService.get<string>('app.nodeEnv') === 'development';
 
     const host = this.configService.get<string>('mail.smtpHost');
     const port = this.configService.get<number>('mail.smtpPort');
@@ -37,7 +40,9 @@ export class MailerService {
 
       this.logger.log(`Mailer configured with SMTP host: ${host}:${port}`);
     } else {
-      this.logger.warn('SMTP not configured - emails will be logged to console only');
+      this.logger.warn(
+        'SMTP not configured - emails will be logged to console only',
+      );
     }
   }
 
@@ -53,16 +58,17 @@ export class MailerService {
     }
 
     try {
-      const info = await this.transporter.sendMail({
-        from: this.from,
-        to,
-        subject,
-        html,
-        text: text || this.stripHtml(html),
-      });
+      const info: SMTPTransport.SentMessageInfo =
+        await this.transporter.sendMail({
+          from: this.from,
+          to,
+          subject,
+          html,
+          text: text || this.stripHtml(html),
+        });
 
       this.logger.log(`Email sent to ${to}: ${info.messageId}`);
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error(`Failed to send email to ${to}:`, error);
       // Don't throw in dev mode
       if (!this.isDev) {
@@ -82,7 +88,9 @@ export class MailerService {
   }
 
   async sendPasswordResetEmail(email: string, token: string): Promise<void> {
-    const frontendUrl = this.configService.get<string>('app.frontendUrl') || 'http://localhost:5173';
+    const frontendUrl =
+      this.configService.get<string>('app.frontendUrl') ||
+      'http://localhost:5173';
     const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
     const html = this.getPasswordResetEmailTemplate(resetUrl);
 
@@ -105,7 +113,10 @@ export class MailerService {
   }
 
   private stripHtml(html: string): string {
-    return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    return html
+      .replace(/<[^>]*>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   // ========================================

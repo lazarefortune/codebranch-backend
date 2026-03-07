@@ -5,13 +5,30 @@ import { ExtractJwt, Strategy, StrategyOptionsWithRequest } from 'passport-jwt';
 import { Request } from 'express';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
 
+function getRefreshCookie(request: unknown): string | undefined {
+  if (!request || typeof request !== 'object') {
+    return undefined;
+  }
+
+  const maybeCookies = (request as { cookies?: unknown }).cookies;
+  if (!maybeCookies || typeof maybeCookies !== 'object') {
+    return undefined;
+  }
+
+  const refreshToken = (maybeCookies as Record<string, unknown>).cb_refresh;
+  return typeof refreshToken === 'string' ? refreshToken : undefined;
+}
+
 @Injectable()
-export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
+export class JwtRefreshStrategy extends PassportStrategy(
+  Strategy,
+  'jwt-refresh',
+) {
   constructor(configService: ConfigService) {
     const options: StrategyOptionsWithRequest = {
       jwtFromRequest: ExtractJwt.fromExtractors([
         (request: Request) => {
-          return request?.cookies?.cb_refresh || null;
+          return getRefreshCookie(request) ?? null;
         },
       ]),
       ignoreExpiration: false,
@@ -21,13 +38,16 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     super(options);
   }
 
-  validate(request: Request, payload: JwtPayload) {
+  validate(
+    request: Request,
+    payload: JwtPayload,
+  ): { id: string; email: string; refreshToken?: string } | null {
     if (payload.type !== 'refresh') {
       return null;
     }
-    const refreshToken = request.cookies?.cb_refresh;
+    const refreshToken = getRefreshCookie(request);
     return {
-      userId: payload.sub,
+      id: payload.sub,
       email: payload.email,
       refreshToken,
     };

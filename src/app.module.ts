@@ -26,8 +26,8 @@ import { PublicPagesModule } from './modules/public-pages';
     // Rate limiting
     ThrottlerModule.forRoot([
       {
-        ttl: 60000, 
-        limit: 100, 
+        ttl: 60000,
+        limit: 100,
       },
     ]),
 

@@ -11,6 +11,6 @@ import { AuthService } from './auth.service';
     JwtModule.register({}),
   ],
   controllers: [AuthController],
-  providers: [ JwtStrategy, JwtRefreshStrategy, AuthService ],
+  providers: [JwtStrategy, JwtRefreshStrategy, AuthService],
 })
 export class AuthModule {}

@@ -38,8 +38,18 @@ export class PagesController {
 
   @Get()
   @ApiOperation({ summary: 'List all pages for current user' })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page',
+  })
   @ApiResponse({
     status: 200,
     description: 'Returns list of pages with pagination',
@@ -66,10 +76,7 @@ export class PagesController {
     status: 401,
     description: 'Unauthorized',
   })
-  async create(
-    @CurrentUser('id') userId: string,
-    @Body() dto: CreatePageDto,
-  ) {
+  async create(@CurrentUser('id') userId: string, @Body() dto: CreatePageDto) {
     return this.pagesService.create(userId, dto);
   }
 

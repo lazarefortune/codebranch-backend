@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -11,6 +12,7 @@ async function bootstrap() {
 
   // Global API prefix
   app.setGlobalPrefix('api/v1');
+  app.use(cookieParser());
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -21,7 +23,8 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: configService.get<string>('app.frontendUrl') || 'http://localhost:5173',
+    origin:
+      configService.get<string>('app.frontendUrl') || 'http://localhost:5173',
     credentials: true,
   });
 
@@ -40,4 +43,4 @@ async function bootstrap() {
   console.log(`Swagger docs at http://localhost:${port}/api/docs`);
 }
 
-bootstrap();
+void bootstrap();

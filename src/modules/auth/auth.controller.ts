@@ -5,9 +5,10 @@ import {
   HttpCode,
   HttpStatus,
   Res,
+  Req,
   UseGuards,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -28,7 +29,6 @@ import {
 import { JwtRefreshGuard } from './guards';
 import { AuthService } from './auth.service';
 
-
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
@@ -36,7 +36,7 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Register a new user' })
   @ApiBody({ type: RegisterDto })
   @ApiResponse({
@@ -105,7 +105,10 @@ export class AuthController {
     status: 403,
     description: 'Email not verified',
   })
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.login(dto);
 
     // Set refresh token as httpOnly cookie
@@ -118,8 +121,7 @@ export class AuthController {
     });
 
     // Don't return refresh token in body
-    const { refreshToken, ...response } = result;
-    return response;
+    return { accessToken: result.accessToken, user: result.user };
   }
 
   @Public()
@@ -167,9 +169,11 @@ export class AuthController {
   })
   async logout(
     @CurrentUser('id') userId: string,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = res.req.cookies?.cb_refresh;
+    const refreshToken = (req.cookies as Record<string, string> | undefined)
+      ?.cb_refresh;
     if (refreshToken) {
       await this.authService.logout(userId, refreshToken);
     }

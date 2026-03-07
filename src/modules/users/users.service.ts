@@ -32,7 +32,10 @@ export class UsersService {
       throw new InvalidCredentialsException();
     }
 
-    const isPasswordValid = await argon2.verify(user.passwordHash, dto.password);
+    const isPasswordValid = await argon2.verify(
+      user.passwordHash,
+      dto.password,
+    );
 
     if (!isPasswordValid) {
       throw new InvalidCredentialsException();

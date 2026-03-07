@@ -16,7 +16,11 @@ export class UsernamesController {
 
   @Get('check')
   @ApiOperation({ summary: 'Check username availability' })
-  @ApiQuery({ name: 'username', required: true, description: 'Username to check' })
+  @ApiQuery({
+    name: 'username',
+    required: true,
+    description: 'Username to check',
+  })
   @ApiResponse({
     status: 200,
     description: 'Returns availability status',

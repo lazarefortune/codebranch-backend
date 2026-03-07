@@ -62,7 +62,9 @@ export class PagesService {
    * Get block or throw BlockNotFoundException
    */
   private async getBlockOrFail(blockId: string, pageId: string) {
-    const block = await this.prisma.block.findUnique({ where: { id: blockId } });
+    const block = await this.prisma.block.findUnique({
+      where: { id: blockId },
+    });
     if (!block || block.pageId !== pageId) throw new BlockNotFoundException();
     return block;
   }
@@ -212,14 +214,23 @@ export class PagesService {
     this.assertOwnership(page, userId);
 
     const normalizedUsername = dto.username.toLowerCase().trim();
-    const existingPage = await this.prisma.page.findUnique({ where: { username: normalizedUsername } });
-    
-    if (existingPage && existingPage.id !== pageId) throw new UsernameTakenException();
+    const existingPage = await this.prisma.page.findUnique({
+      where: { username: normalizedUsername },
+    });
+
+    if (existingPage && existingPage.id !== pageId)
+      throw new UsernameTakenException();
 
     const updatedPage = await this.prisma.page.update({
       where: { id: pageId },
       data: { username: normalizedUsername },
-      select: { id: true, username: true, isPublic: true, createdAt: true, updatedAt: true },
+      select: {
+        id: true,
+        username: true,
+        isPublic: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     return { page: updatedPage };
@@ -236,13 +247,25 @@ export class PagesService {
     const page = await this.getPageOrFail(pageId);
     this.assertOwnership(page, userId);
 
-    if (!Object.values(BlockType).includes(dto.type as BlockType)) {
+    if (!Object.values(BlockType).includes(dto.type)) {
       throw new InvalidBlockTypeException();
     }
 
     const block = await this.prisma.block.create({
-      data: { pageId, type: dto.type, order: dto.order, data: dto.data as Prisma.InputJsonValue },
-      select: { id: true, type: true, order: true, data: true, createdAt: true, updatedAt: true },
+      data: {
+        pageId,
+        type: dto.type,
+        order: dto.order,
+        data: dto.data as Prisma.InputJsonValue,
+      },
+      select: {
+        id: true,
+        type: true,
+        order: true,
+        data: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     return { block };
@@ -251,7 +274,12 @@ export class PagesService {
   /**
    * Update a block
    */
-  async updateBlock(userId: string, pageId: string, blockId: string, dto: UpdateBlockDto) {
+  async updateBlock(
+    userId: string,
+    pageId: string,
+    blockId: string,
+    dto: UpdateBlockDto,
+  ) {
     const page = await this.getPageOrFail(pageId);
     this.assertOwnership(page, userId);
     await this.getBlockOrFail(blockId, pageId);
@@ -260,9 +288,18 @@ export class PagesService {
       where: { id: blockId },
       data: {
         ...(dto.order !== undefined && { order: dto.order }),
-        ...(dto.data !== undefined && { data: dto.data as Prisma.InputJsonValue }),
+        ...(dto.data !== undefined && {
+          data: dto.data as Prisma.InputJsonValue,
+        }),
       },
-      select: { id: true, type: true, order: true, data: true, createdAt: true, updatedAt: true },
+      select: {
+        id: true,
+        type: true,
+        order: true,
+        data: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     return { block: updatedBlock };
@@ -284,12 +321,18 @@ export class PagesService {
   /**
    * Bulk replace all blocks
    */
-  async bulkReplaceBlocks(userId: string, pageId: string, dto: BulkReplaceBlocksDto) {
+  async bulkReplaceBlocks(
+    userId: string,
+    pageId: string,
+    dto: BulkReplaceBlocksDto,
+  ) {
     const page = await this.getPageOrFail(pageId);
     this.assertOwnership(page, userId);
 
     // Validate: exactly one header block
-    const headerCount = dto.blocks.filter((b) => b.type === BlockType.HEADER).length;
+    const headerCount = dto.blocks.filter(
+      (b) => b.type === BlockType.HEADER,
+    ).length;
     if (headerCount === 0) throw new HeaderRequiredException();
     if (headerCount > 1) throw new MultipleHeadersNotAllowedException();
 

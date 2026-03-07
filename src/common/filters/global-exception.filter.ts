@@ -48,7 +48,15 @@ const FIELD_PATTERNS = [
   /^Invalid ([a-zA-Z]+)/i,
 ];
 
-const COMMON_FIELDS = ['email', 'password', 'username', 'name', 'title', 'code', 'token'];
+const COMMON_FIELDS = [
+  'email',
+  'password',
+  'username',
+  'name',
+  'title',
+  'code',
+  'token',
+];
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -106,7 +114,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     return {
       status,
-      code: (responseObj.code as string) ?? STATUS_CODE_MAP[status] ?? 'UNKNOWN_ERROR',
+      code:
+        (responseObj.code as string) ??
+        STATUS_CODE_MAP[status] ??
+        'UNKNOWN_ERROR',
       message: (responseObj.message as string) ?? exception.message,
       details: responseObj.details as ValidationDetail[] | undefined,
     };
@@ -121,7 +132,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     // Fallback: check for common field names
     const lowerMessage = message.toLowerCase();
-    return COMMON_FIELDS.find((field) => lowerMessage.includes(field)) ?? 'field';
+    return (
+      COMMON_FIELDS.find((field) => lowerMessage.includes(field)) ?? 'field'
+    );
   }
 
   private logError(

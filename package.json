@@ -6,6 +6,9 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "postinstall": "pnpm run prisma:generate && pnpm run prisma:link",
+    "prisma:generate": "prisma generate",
+    "prisma:link": "TARGET=\"$(dirname \"$(realpath node_modules/@prisma/client)\")/../.prisma/client\" && rm -rf node_modules/.prisma && mkdir -p node_modules/.prisma && cp -R \"$TARGET\" node_modules/.prisma/",
     "build": "nest build && tsc-alias",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
@@ -17,7 +20,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./jest-e2e.json"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -83,9 +86,20 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1"
+    },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 15,
+        "functions": 12,
+        "lines": 15,
+        "statements": 15
+      }
+    },
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   }

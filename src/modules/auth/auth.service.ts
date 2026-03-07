@@ -44,7 +44,13 @@ export class AuthService {
     const passwordHash = await argon2.hash(dto.password);
     const user = await this.prisma.user.create({
       data: { email: dto.email.toLowerCase(), passwordHash },
-      select: { id: true, email: true, emailVerifiedAt: true, createdAt: true, updatedAt: true },
+      select: {
+        id: true,
+        email: true,
+        emailVerifiedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     await this.createAndSendVerificationCode(user.id, user.email);
@@ -52,7 +58,9 @@ export class AuthService {
   }
 
   async verifyEmail(dto: VerifyEmailDto) {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email.toLowerCase() } });
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email.toLowerCase() },
+    });
     if (!user) throw new UserNotFoundException();
 
     const verificationCode = await this.prisma.verificationCode.findFirst({
@@ -60,22 +68,37 @@ export class AuthService {
       orderBy: { createdAt: 'desc' },
     });
     if (!verificationCode) throw new InvalidCodeException();
-    if (verificationCode.expiresAt < new Date()) throw new CodeExpiredException();
+    if (verificationCode.expiresAt < new Date())
+      throw new CodeExpiredException();
 
     await this.prisma.$transaction([
-      this.prisma.verificationCode.update({ where: { id: verificationCode.id }, data: { usedAt: new Date() } }),
-      this.prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } }),
+      this.prisma.verificationCode.update({
+        where: { id: verificationCode.id },
+        data: { usedAt: new Date() },
+      }),
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerifiedAt: new Date() },
+      }),
     ]);
 
     const updatedUser = await this.prisma.user.findUnique({
       where: { id: user.id },
-      select: { id: true, email: true, emailVerifiedAt: true, createdAt: true, updatedAt: true },
+      select: {
+        id: true,
+        email: true,
+        emailVerifiedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
     return { status: 'VERIFIED', user: updatedUser };
   }
 
   async resendVerificationCode(dto: ResendCodeDto) {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email.toLowerCase() } });
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email.toLowerCase() },
+    });
     if (!user) throw new UserNotFoundException();
     if (user.emailVerifiedAt) throw new AlreadyVerifiedException();
 
@@ -84,10 +107,15 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email.toLowerCase() } });
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email.toLowerCase() },
+    });
     if (!user) throw new InvalidCredentialsException();
 
-    const isPasswordValid = await argon2.verify(user.passwordHash, dto.password);
+    const isPasswordValid = await argon2.verify(
+      user.passwordHash,
+      dto.password,
+    );
     if (!isPasswordValid) throw new InvalidCredentialsException();
     if (!user.emailVerifiedAt) throw new EmailNotVerifiedException();
 
@@ -95,13 +123,23 @@ export class AuthService {
     const tokenHash = await argon2.hash(tokens.refreshToken);
 
     await this.prisma.refreshToken.create({
-      data: { userId: user.id, tokenHash, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
     });
 
     return {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
-      user: { id: user.id, email: user.email, emailVerifiedAt: user.emailVerifiedAt, createdAt: user.createdAt, updatedAt: user.updatedAt },
+      user: {
+        id: user.id,
+        email: user.email,
+        emailVerifiedAt: user.emailVerifiedAt,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
     };
   }
 
@@ -130,19 +168,31 @@ export class AuthService {
     const tokenHash = await argon2.hash(tokens.refreshToken);
 
     await this.prisma.refreshToken.create({
-      data: { userId: user.id, tokenHash, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
     });
 
-    return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
   }
 
   async logout(userId: string, refreshToken: string) {
-    const refreshTokens = await this.prisma.refreshToken.findMany({ where: { userId, revokedAt: null } });
+    const refreshTokens = await this.prisma.refreshToken.findMany({
+      where: { userId, revokedAt: null },
+    });
 
     for (const storedToken of refreshTokens) {
       try {
         if (await argon2.verify(storedToken.tokenHash, refreshToken)) {
-          await this.prisma.refreshToken.update({ where: { id: storedToken.id }, data: { revokedAt: new Date() } });
+          await this.prisma.refreshToken.update({
+            where: { id: storedToken.id },
+            data: { revokedAt: new Date() },
+          });
           break;
         }
       } catch {
@@ -152,17 +202,23 @@ export class AuthService {
   }
 
   async forgotPassword(dto: ForgotPasswordDto) {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email.toLowerCase() } });
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email.toLowerCase() },
+    });
     if (!user) return { status: 'SENT' };
 
     const token = nanoid(32);
     const tokenHash = await argon2.hash(token);
 
     await this.prisma.passwordReset.create({
-      data: { userId: user.id, tokenHash, expiresAt: new Date(Date.now() + 60 * 60 * 1000) },
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
     });
 
-    console.log('[DEV] Password reset token for ' + user.email + ': ' + token);
+    await this.mailerService.sendPasswordResetEmail(user.email, token);
     return { status: 'SENT' };
   }
 
@@ -207,33 +263,51 @@ export class AuthService {
     const passwordHash = await argon2.hash(dto.newPassword);
 
     await this.prisma.$transaction([
-      this.prisma.passwordReset.update({ where: { id: validReset.id }, data: { usedAt: new Date() } }),
-      this.prisma.user.update({ where: { id: validReset.userId }, data: { passwordHash } }),
-      this.prisma.refreshToken.updateMany({ where: { userId: validReset.userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+      this.prisma.passwordReset.update({
+        where: { id: validReset.id },
+        data: { usedAt: new Date() },
+      }),
+      this.prisma.user.update({
+        where: { id: validReset.userId },
+        data: { passwordHash },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId: validReset.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
     ]);
 
     return { status: 'RESET' };
   }
 
   private async generateTokens(userId: string, email: string) {
+    type JwtSignOptions = Parameters<JwtService['signAsync']>[1];
+    type JwtExpiresIn = NonNullable<JwtSignOptions>['expiresIn'];
+
     const accessPayload = { sub: userId, email, type: 'access' as const };
     const refreshPayload = { sub: userId, email, type: 'refresh' as const };
+    const accessExpiresIn = (this.configService.get<string>(
+      'jwt.accessExpiresIn',
+    ) || '15m') as JwtExpiresIn;
+    const refreshExpiresIn = (this.configService.get<string>(
+      'jwt.refreshExpiresIn',
+    ) || '7d') as JwtExpiresIn;
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(accessPayload, {
         secret: this.configService.getOrThrow('jwt.accessSecret'),
-        expiresIn: this.configService.get('jwt.accessExpiresIn') || '15m',
+        expiresIn: accessExpiresIn,
       }),
       this.jwtService.signAsync(refreshPayload, {
         secret: this.configService.getOrThrow('jwt.refreshSecret'),
-        expiresIn: this.configService.get('jwt.refreshExpiresIn') || '7d',
+        expiresIn: refreshExpiresIn,
       }),
     ]);
 
     return { accessToken, refreshToken };
   }
 
-  private async createAndSendVerificationCode(userId, email) {
+  private async createAndSendVerificationCode(userId: string, email: string) {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
     await this.prisma.verificationCode.create({

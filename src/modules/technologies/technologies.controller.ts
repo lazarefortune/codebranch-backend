@@ -26,8 +26,18 @@ export class TechnologiesController {
   @Get()
   @ApiOperation({ summary: 'List technologies' })
   @ApiQuery({ name: 'query', required: false, description: 'Search query' })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page',
+  })
   @ApiResponse({
     status: 200,
     description: 'Returns list of technologies with pagination',
