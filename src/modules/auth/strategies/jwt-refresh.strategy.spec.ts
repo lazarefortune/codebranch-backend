@@ -49,4 +49,22 @@ describe('JwtRefreshStrategy', () => {
 
     expect(result).toBeNull();
   });
+
+  it('should return null when refresh cookie is missing', () => {
+    const configService = {
+      getOrThrow: jest.fn().mockReturnValue('refresh-secret'),
+    } as unknown as ConfigService;
+
+    const strategy = new JwtRefreshStrategy(configService);
+
+    const request = { cookies: {} };
+
+    const result = strategy.validate(request as never, {
+      sub: 'u1',
+      email: 'user@example.com',
+      type: 'refresh',
+    });
+
+    expect(result).toBeNull();
+  });
 });

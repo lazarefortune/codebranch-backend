@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import { randomInt } from 'crypto';
+import { randomInt, createHash } from 'crypto';
 import { nanoid } from 'nanoid';
 import { PrismaService } from '@/common/prisma';
 import { MailerService } from '@/common/mailer';
@@ -14,7 +14,6 @@ import {
   CodeExpiredException,
   InvalidRefreshTokenException,
   TokenInvalidException,
-  TokenExpiredException,
   AlreadyVerifiedException,
 } from './exceptions';
 import { UserNotFoundException } from '@/modules/users/exceptions';
@@ -215,7 +214,7 @@ export class AuthService {
     if (!user) return { status: 'SENT' };
 
     const token = nanoid(32);
-    const tokenHash = await argon2.hash(token);
+    const tokenHash = createHash('sha256').update(token).digest('hex');
 
     await this.prisma.passwordReset.create({
       data: {
@@ -230,40 +229,14 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordDto) {
-    const passwordResets = await this.prisma.passwordReset.findMany({
-      where: { usedAt: null, expiresAt: { gt: new Date() } },
+    const tokenHash = createHash('sha256').update(dto.token).digest('hex');
+
+    const validReset = await this.prisma.passwordReset.findFirst({
+      where: { tokenHash, usedAt: null, expiresAt: { gt: new Date() } },
       include: { user: true },
     });
 
-    type PasswordResetWithUser = (typeof passwordResets)[number];
-    let validReset: PasswordResetWithUser | null = null;
-
-    for (const reset of passwordResets) {
-      try {
-        if (await argon2.verify(reset.tokenHash, dto.token)) {
-          validReset = reset;
-          break;
-        }
-      } catch {
-        continue;
-      }
-    }
-
     if (!validReset) {
-      const expiredResets = await this.prisma.passwordReset.findMany({
-        where: { usedAt: null, expiresAt: { lte: new Date() } },
-      });
-
-      for (const reset of expiredResets) {
-        try {
-          if (await argon2.verify(reset.tokenHash, dto.token)) {
-            throw new TokenExpiredException();
-          }
-        } catch (e) {
-          if (e instanceof TokenExpiredException) throw e;
-          continue;
-        }
-      }
       throw new TokenInvalidException();
     }
 
