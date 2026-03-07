@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, BadRequestException } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -26,6 +26,9 @@ export class UsernamesController {
     description: 'Returns availability status',
   })
   async checkAvailability(@Query('username') username: string) {
+    if (!username || typeof username !== 'string' || !username.trim()) {
+      throw new BadRequestException('Username query parameter is required');
+    }
     return this.usernamesService.checkAvailability(username);
   }
 }

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import * as crypto from 'crypto';
 import { nanoid } from 'nanoid';
 import { PrismaService } from '@/common/prisma';
 import { MailerService } from '@/common/mailer';
@@ -151,21 +152,27 @@ export class AuthService {
       where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
     });
 
-    let validToken = false;
+    let matchedTokenId: string | null = null;
     for (const storedToken of refreshTokens) {
       try {
         if (await argon2.verify(storedToken.tokenHash, refreshToken)) {
-          validToken = true;
+          matchedTokenId = storedToken.id;
           break;
         }
       } catch {
         continue;
       }
     }
-    if (!validToken) throw new InvalidRefreshTokenException();
+    if (!matchedTokenId) throw new InvalidRefreshTokenException();
 
     const tokens = await this.generateTokens(user.id, user.email);
     const tokenHash = await argon2.hash(tokens.refreshToken);
+
+    // Revoke the old refresh token and create the new one
+    await this.prisma.refreshToken.update({
+      where: { id: matchedTokenId },
+      data: { revokedAt: new Date() },
+    });
 
     await this.prisma.refreshToken.create({
       data: {
@@ -208,7 +215,7 @@ export class AuthService {
     if (!user) return { status: 'SENT' };
 
     const token = nanoid(32);
-    const tokenHash = await argon2.hash(token);
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
     await this.prisma.passwordReset.create({
       data: {
@@ -223,56 +230,32 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordDto) {
-    const passwordResets = await this.prisma.passwordReset.findMany({
-      where: { usedAt: null, expiresAt: { gt: new Date() } },
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(dto.token)
+      .digest('hex');
+
+    const reset = await this.prisma.passwordReset.findFirst({
+      where: { tokenHash, usedAt: null },
       include: { user: true },
     });
 
-    type PasswordResetWithUser = (typeof passwordResets)[number];
-    let validReset: PasswordResetWithUser | null = null;
-
-    for (const reset of passwordResets) {
-      try {
-        if (await argon2.verify(reset.tokenHash, dto.token)) {
-          validReset = reset;
-          break;
-        }
-      } catch {
-        continue;
-      }
-    }
-
-    if (!validReset) {
-      const expiredResets = await this.prisma.passwordReset.findMany({
-        where: { usedAt: null, expiresAt: { lte: new Date() } },
-      });
-
-      for (const reset of expiredResets) {
-        try {
-          if (await argon2.verify(reset.tokenHash, dto.token)) {
-            throw new TokenExpiredException();
-          }
-        } catch (e) {
-          if (e instanceof TokenExpiredException) throw e;
-          continue;
-        }
-      }
-      throw new TokenInvalidException();
-    }
+    if (!reset) throw new TokenInvalidException();
+    if (reset.expiresAt < new Date()) throw new TokenExpiredException();
 
     const passwordHash = await argon2.hash(dto.newPassword);
 
     await this.prisma.$transaction([
       this.prisma.passwordReset.update({
-        where: { id: validReset.id },
+        where: { id: reset.id },
         data: { usedAt: new Date() },
       }),
       this.prisma.user.update({
-        where: { id: validReset.userId },
+        where: { id: reset.userId },
         data: { passwordHash },
       }),
       this.prisma.refreshToken.updateMany({
-        where: { userId: validReset.userId, revokedAt: null },
+        where: { userId: reset.userId, revokedAt: null },
         data: { revokedAt: new Date() },
       }),
     ]);
@@ -308,7 +291,7 @@ export class AuthService {
   }
 
   private async createAndSendVerificationCode(userId: string, email: string) {
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = crypto.randomInt(100000, 1000000).toString();
 
     await this.prisma.verificationCode.create({
       data: { userId, code, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },

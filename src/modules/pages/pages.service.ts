@@ -343,27 +343,27 @@ export class PagesService {
         where: { pageId },
       });
 
-      // Create new blocks
-      const createdBlocks = await Promise.all(
-        dto.blocks.map((blockData) =>
-          tx.block.create({
-            data: {
-              pageId,
-              type: blockData.type,
-              order: blockData.order,
-              data: blockData.data as Prisma.InputJsonValue,
-            },
-            select: {
-              id: true,
-              type: true,
-              order: true,
-              data: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-          }),
-        ),
-      );
+      // Create new blocks sequentially to avoid concurrent transaction issues
+      const createdBlocks = [];
+      for (const blockData of dto.blocks) {
+        const block = await tx.block.create({
+          data: {
+            pageId,
+            type: blockData.type,
+            order: blockData.order,
+            data: blockData.data as Prisma.InputJsonValue,
+          },
+          select: {
+            id: true,
+            type: true,
+            order: true,
+            data: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+        createdBlocks.push(block);
+      }
 
       return createdBlocks;
     });

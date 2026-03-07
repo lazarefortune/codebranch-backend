@@ -83,7 +83,7 @@ export class MailerService {
       to: email,
       subject: 'Vérifiez votre adresse email - CodeBranch',
       html,
-      text: `Votre code de vérification CodeBranch est: ${code}. Ce code expire dans 15 minutes.`,
+      text: `Votre code de vérification CodeBranch est: ${code}. Ce code expire dans 10 minutes.`,
     });
   }
 
@@ -132,6 +132,7 @@ export class MailerService {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CodeBranch</title>
   <style>
+  </style>
 </head>
 <body>
   <div class="container">
@@ -157,7 +158,7 @@ export class MailerService {
       <p>Merci de vous être inscrit sur CodeBranch! Pour activer votre compte, utilisez le code de vérification ci-dessous:</p>
       <div class="code-box">${code}</div>
       <div class="warning">
-        ⏱️ Ce code expire dans <strong>15 minutes</strong>. Si vous n'avez pas demandé ce code, ignorez simplement cet email.
+        ⏱️ Ce code expire dans <strong>10 minutes</strong>. Si vous n'avez pas demandé ce code, ignorez simplement cet email.
       </div>
       <p>À très bientôt sur CodeBranch!</p>
     `;

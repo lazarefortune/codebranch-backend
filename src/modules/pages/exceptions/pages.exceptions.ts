@@ -91,13 +91,3 @@ export class CannotDeleteHeaderException extends CustomException {
     });
   }
 }
-
-export class TechnologyAlreadyExistsException extends CustomException {
-  constructor() {
-    super({
-      code: 'TECHNOLOGY_ALREADY_EXISTS',
-      message: 'A technology with this name already exists',
-      status: HttpStatus.CONFLICT,
-    });
-  }
-}

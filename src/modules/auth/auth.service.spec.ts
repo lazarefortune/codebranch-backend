@@ -28,6 +28,7 @@ type PrismaMock = {
   };
   passwordReset: {
     create: jest.Mock<Promise<unknown>, [Record<string, unknown>]>;
+    findFirst: jest.Mock;
     findMany: jest.Mock;
     update: jest.Mock;
   };
@@ -79,6 +80,7 @@ describe('AuthService', () => {
       },
       passwordReset: {
         create: jest.fn<Promise<unknown>, [Record<string, unknown>]>(),
+        findFirst: jest.fn(),
         findMany: jest.fn(),
         update: jest.fn(),
       },
@@ -249,7 +251,6 @@ describe('AuthService', () => {
 
   it('forgotPassword should create reset token and send email for known user', async () => {
     (nanoid as jest.Mock).mockReturnValue('reset-token');
-    jest.spyOn(argon2, 'hash').mockResolvedValue('hashed-reset-token' as never);
 
     prisma.user.findUnique.mockResolvedValue({
       id: 'u1',
@@ -269,7 +270,8 @@ describe('AuthService', () => {
     };
 
     expect(passwordResetCreateInput.data?.userId).toBe('u1');
-    expect(passwordResetCreateInput.data?.tokenHash).toBe('hashed-reset-token');
+    // tokenHash is now SHA-256 hex digest
+    expect(passwordResetCreateInput.data?.tokenHash).toMatch(/^[a-f0-9]{64}$/);
     expect(mailerService.sendPasswordResetEmail).toHaveBeenCalledWith(
       'user@example.com',
       'reset-token',
