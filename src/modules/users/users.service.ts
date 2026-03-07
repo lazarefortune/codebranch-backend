@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { PrismaService } from '@/common/prisma';
 import { InvalidCredentialsException } from '@/modules/auth/exceptions';
+import { UserNotFoundException } from './exceptions';
 import { DeleteAccountDto } from './dto';
 
 @Injectable()
@@ -19,6 +20,10 @@ export class UsersService {
         updatedAt: true,
       },
     });
+
+    if (!user) {
+      throw new UserNotFoundException();
+    }
 
     return { user };
   }

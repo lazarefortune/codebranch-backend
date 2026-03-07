@@ -251,6 +251,11 @@ export class PagesService {
       throw new InvalidBlockTypeException();
     }
 
+    // Header is managed at page creation / bulk replace to guarantee exactly one header.
+    if (dto.type === BlockType.HEADER) {
+      throw new MultipleHeadersNotAllowedException();
+    }
+
     const block = await this.prisma.block.create({
       data: {
         pageId,

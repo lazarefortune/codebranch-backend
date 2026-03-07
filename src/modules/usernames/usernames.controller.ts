@@ -4,9 +4,9 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
-  ApiQuery,
 } from '@nestjs/swagger';
 import { UsernamesService } from './usernames.service';
+import { CheckAvailabilityQueryDto } from './dto';
 
 @ApiTags('Usernames')
 @ApiBearerAuth()
@@ -16,16 +16,11 @@ export class UsernamesController {
 
   @Get('check')
   @ApiOperation({ summary: 'Check username availability' })
-  @ApiQuery({
-    name: 'username',
-    required: true,
-    description: 'Username to check',
-  })
   @ApiResponse({
     status: 200,
     description: 'Returns availability status',
   })
-  async checkAvailability(@Query('username') username: string) {
-    return this.usernamesService.checkAvailability(username);
+  async checkAvailability(@Query() query: CheckAvailabilityQueryDto) {
+    return this.usernamesService.checkAvailability(query.username);
   }
 }

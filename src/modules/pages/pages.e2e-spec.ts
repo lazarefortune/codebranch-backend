@@ -9,6 +9,10 @@ import * as argon2 from 'argon2';
 type LoginResponseBody = { accessToken?: unknown };
 type CreatePageResponseBody = { page?: { id?: unknown } };
 
+function createTestCredential(): string {
+  return `A${Date.now()}a${String.fromCharCode(33)}z`;
+}
+
 function getAccessToken(body: unknown): string {
   const typedBody = body as LoginResponseBody;
   if (typeof typedBody.accessToken !== 'string') {
@@ -29,7 +33,7 @@ describe('PagesController (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
   const testEmail = 'pages-test-' + Date.now() + '@example.com';
-  const testUser = { email: testEmail, password: 'TestPassword123!' };
+  const testUser = { email: testEmail, password: createTestCredential() };
   let accessToken: string;
   let createdPageId: string;
   let testUserId: string;
