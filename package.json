@@ -93,6 +93,9 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
+    "testPathIgnorePatterns": [
+      "\\.e2e-spec\\.ts$"
+    ],
     "coverageThreshold": {
       "global": {
         "branches": 15,
