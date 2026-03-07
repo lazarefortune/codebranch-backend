@@ -157,9 +157,7 @@ Phase 2 (Users) → Phase 3 (Pages) → Phase 5 (Blocks) → Phase 6 (Public) �
               └──────────────────────────────|
 
 
-
-
-              User not existe 
-              et password invalid quand je supprime le compte 
-              dans les exception 
-              
+              Gestion des erreurs pour la suppression de compte :
+              • Retourner une erreur claire si l'utilisateur n'existe pas.
+              • Retourner une erreur "mot de passe invalide" si le mot de passe fourni est incorrect.
+              • Documenter ces cas d'erreur dans les exceptions de l'API.

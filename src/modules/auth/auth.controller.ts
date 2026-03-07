@@ -129,7 +129,6 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token' })
-  @ApiBearerAuth()
   @ApiResponse({
     status: 200,
     description: 'Token refreshed successfully',

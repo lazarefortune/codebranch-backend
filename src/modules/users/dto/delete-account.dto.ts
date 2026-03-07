@@ -3,7 +3,7 @@ import { IsString } from 'class-validator';
 
 export class DeleteAccountDto {
   @ApiProperty({
-    example: 'CurrentPassword123!',
+    example: '<current_password>',
     description: 'Current password to confirm account deletion',
   })
   @IsString()
