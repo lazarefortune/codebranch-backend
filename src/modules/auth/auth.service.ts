@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import { randomInt } from 'crypto';
 import { nanoid } from 'nanoid';
 import { PrismaService } from '@/common/prisma';
 import { MailerService } from '@/common/mailer';
@@ -151,29 +152,35 @@ export class AuthService {
       where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
     });
 
-    let validToken = false;
+    let matchedTokenId: string | null = null;
     for (const storedToken of refreshTokens) {
       try {
         if (await argon2.verify(storedToken.tokenHash, refreshToken)) {
-          validToken = true;
+          matchedTokenId = storedToken.id;
           break;
         }
       } catch {
         continue;
       }
     }
-    if (!validToken) throw new InvalidRefreshTokenException();
+    if (!matchedTokenId) throw new InvalidRefreshTokenException();
 
     const tokens = await this.generateTokens(user.id, user.email);
     const tokenHash = await argon2.hash(tokens.refreshToken);
 
-    await this.prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        tokenHash,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-    });
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.update({
+        where: { id: matchedTokenId },
+        data: { revokedAt: new Date() },
+      }),
+      this.prisma.refreshToken.create({
+        data: {
+          userId: user.id,
+          tokenHash,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      }),
+    ]);
 
     return {
       accessToken: tokens.accessToken,
@@ -308,10 +315,10 @@ export class AuthService {
   }
 
   private async createAndSendVerificationCode(userId: string, email: string) {
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = randomInt(100000, 1000000).toString();
 
     await this.prisma.verificationCode.create({
-      data: { userId, code, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+      data: { userId, code, expiresAt: new Date(Date.now() + 15 * 60 * 1000) },
     });
 
     await this.mailerService.sendVerificationEmail(email, code);
