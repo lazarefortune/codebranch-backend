@@ -86,7 +86,8 @@ Public pages are reachable via:
 Public API retrieval is by username.
 
 ### 1.2 Page ownership
-- Authenticated users can only manage their own pages and blocks.
+- Each user has exactly one page (1 user = 1 page).
+- Authenticated users can only manage their own page and blocks.
 
 ### 1.3 Blocks model
 A page contains ordered blocks.
@@ -105,6 +106,12 @@ Frontend can use:
 - Granular block endpoints (`create/update/delete`)
 - Bulk replace (`PUT /pages/{pageId}/blocks`) for explicit Save flows
 
+### 1.6 Onboarding model
+- Username is chosen before registration.
+- On successful register, user and page are created atomically.
+- Username availability must be checked before submitting the register form.
+- On successful email verification, an access token is returned directly (user is logged in).
+
 ---
 
 ## 2) DTO shapes
@@ -120,7 +127,7 @@ Frontend can use:
 }
 ```
 
-### 2.2 Page DTO (list item)
+### 2.2 Page DTO (summary)
 ```json
 {
   "id": "pag_123",
@@ -131,7 +138,7 @@ Frontend can use:
 }
 ```
 
-### 2.3 Page DTO (detailed owner/public)
+### 2.3 Page DTO (detailed — owner or public)
 ```json
 {
   "id": "pag_123",
@@ -147,7 +154,9 @@ Frontend can use:
         "jobTitle": "Your Job Title",
         "bio": null,
         "avatarUrl": null
-      }
+      },
+      "createdAt": "2026-01-15T18:00:00.000Z",
+      "updatedAt": "2026-01-15T18:00:00.000Z"
     }
   ],
   "createdAt": "2026-01-15T18:00:00.000Z",
@@ -155,7 +164,7 @@ Frontend can use:
 }
 ```
 
-### 2.4 Block DTO (single block endpoints)
+### 2.4 Block DTO
 ```json
 {
   "id": "blk_123",
@@ -185,11 +194,18 @@ Frontend can use:
 ### 3.1 Register
 - `POST /api/v1/auth/register`
 
+Notes:
+- Username availability should be checked via `GET /api/v1/usernames/check` before submitting.
+- User and page are created atomically. If username is taken at write time, registration fails.
+- A verification code is sent to the provided email.
+- User is not authenticated after this step. Authentication happens after email verification.
+
 Request:
 ```json
 {
   "email": "user@example.com",
-  "password": "StrongPassword123!"
+  "password": "StrongPassword123!",
+  "username": "johndoe"
 }
 ```
 
@@ -209,10 +225,16 @@ Response 201:
 
 Errors:
 - 409 `EMAIL_ALREADY_EXISTS`
+- 409 `USERNAME_TAKEN`
 - 400 `VALIDATION_ERROR`
 
 ### 3.2 Verify email
 - `POST /api/v1/auth/verify-email`
+
+Notes:
+- On success, the user is authenticated directly.
+- Sets cookie `cb_refresh`.
+- Returns the user's page so the frontend can redirect immediately to the editor.
 
 Request:
 ```json
@@ -226,12 +248,20 @@ Response 200:
 ```json
 {
   "status": "VERIFIED",
+  "accessToken": "jwt_access_token",
   "user": {
     "id": "usr_123",
     "email": "user@example.com",
     "emailVerifiedAt": "2026-01-15T18:05:00.000Z",
     "createdAt": "2026-01-15T18:00:00.000Z",
     "updatedAt": "2026-01-15T18:05:00.000Z"
+  },
+  "page": {
+    "id": "pag_123",
+    "username": "johndoe",
+    "isPublic": true,
+    "createdAt": "2026-01-15T18:00:00.000Z",
+    "updatedAt": "2026-01-15T18:00:00.000Z"
   }
 }
 ```
@@ -262,6 +292,9 @@ Errors:
 ### 3.4 Login
 - `POST /api/v1/auth/login`
 
+Notes:
+- Sets cookie `cb_refresh`.
+
 Request:
 ```json
 {
@@ -284,9 +317,6 @@ Response 200:
 }
 ```
 
-Notes:
-- Sets cookie `cb_refresh`.
-
 Errors:
 - 401 `INVALID_CREDENTIALS`
 - 403 `EMAIL_NOT_VERIFIED`
@@ -294,17 +324,15 @@ Errors:
 ### 3.5 Refresh session
 - `POST /api/v1/auth/refresh`
 
-Request:
+Notes:
 - No JSON body.
 - Requires cookie `cb_refresh`.
+- Rotates and resets `cb_refresh` cookie.
 
 Response 200:
 ```json
 { "accessToken": "jwt_access_token" }
 ```
-
-Notes:
-- Also rotates and resets `cb_refresh` cookie.
 
 Errors:
 - 401 `INVALID_REFRESH_TOKEN`
@@ -312,18 +340,19 @@ Errors:
 ### 3.6 Logout
 - `POST /api/v1/auth/logout`
 
-Request:
+Notes:
 - Requires access token.
 - No JSON body.
+- Clears `cb_refresh` cookie.
 
 Response:
-- 204 no content
-
-Notes:
-- Clears `cb_refresh` cookie.
+- 204 No Content
 
 ### 3.7 Request password reset
 - `POST /api/v1/auth/password/forgot`
+
+Notes:
+- Response is always 200 regardless of whether the email exists (anti-enumeration).
 
 Request:
 ```json
@@ -334,9 +363,6 @@ Response 200:
 ```json
 { "status": "SENT" }
 ```
-
-Notes:
-- Response is always 200 (anti-enumeration).
 
 ### 3.8 Reset password
 - `POST /api/v1/auth/password/reset`
@@ -384,13 +410,16 @@ Errors:
 ### 4.2 Delete account
 - `DELETE /api/v1/me`
 
+Notes:
+- Also deletes the user's page and all associated blocks (cascade).
+
 Request:
 ```json
 { "password": "CurrentPassword123!" }
 ```
 
 Response:
-- 204 no content
+- 204 No Content
 
 Errors:
 - 401 `UNAUTHORIZED`
@@ -401,21 +430,38 @@ Errors:
 ## 5) Username API
 
 ### 5.1 Check username availability
-- `GET /api/v1/usernames/check?username=lazarefortune`
+- `GET /api/v1/usernames/check?username=johndoe`
+- Public endpoint — no authentication required.
 
-Response 200:
+Notes:
+- Username is normalized to lowercase and trimmed before checking.
+- When unavailable, suggestions are returned as convenience alternatives.
+
+Response 200 — available:
 ```json
 {
-  "username": "lazarefortune",
-  "available": true
+  "username": "johndoe",
+  "available": true,
+  "suggestions": []
 }
 ```
 
-Notes:
-- Username is normalized to lowercase and trimmed.
+Response 200 — taken:
+```json
+{
+  "username": "johndoe",
+  "available": false,
+  "suggestions": ["john_doe", "johndoe_dev", "johndoe2026"]
+}
+```
 
-### 5.2 Set/update username for a page
+### 5.2 Update username
 - `PATCH /api/v1/pages/{pageId}/username`
+- Authenticated. Owner only.
+
+Notes:
+- Can be used from the dashboard to change the page's username after registration.
+- Username availability is checked at write time.
 
 Request:
 ```json
@@ -442,76 +488,14 @@ Errors:
 
 ---
 
-## 6) Pages API (authenticated)
-
-### 6.1 List my pages
-- `GET /api/v1/pages?page=1&limit=20`
-
-Query params:
-- `page`: optional, integer, default `1`, min `1`
-- `limit`: optional, integer, default `20`, min `1`, max `100`
-
-Response 200:
-```json
-{
-  "items": [
-    {
-      "id": "pag_123",
-      "username": "lazarefortune",
-      "isPublic": true,
-      "createdAt": "2026-01-15T18:00:00.000Z",
-      "updatedAt": "2026-01-15T18:10:00.000Z"
-    }
-  ],
-  "meta": {
-    "page": 1,
-    "limit": 20,
-    "totalItems": 1,
-    "totalPages": 1
-  }
-}
-```
-
-### 6.2 Create page
-- `POST /api/v1/pages`
-
-Request:
-```json
-{ "isPublic": true }
-```
-
-Response 201:
-```json
-{
-  "page": {
-    "id": "pag_123",
-    "username": "user-a1b2c3d4",
-    "isPublic": true,
-    "blocks": [
-      {
-        "id": "blk_1",
-        "type": "header",
-        "order": 0,
-        "data": {
-          "title": "Your Name",
-          "jobTitle": "Your Job Title",
-          "bio": null,
-          "avatarUrl": null
-        }
-      }
-    ],
-    "createdAt": "2026-01-15T18:00:00.000Z",
-    "updatedAt": "2026-01-15T18:00:00.000Z"
-  }
-}
-```
+## 6) Page API (authenticated)
 
 Notes:
-- Username is auto-generated by backend.
-- Initial mandatory `header` block is created automatically.
+- In V1, each user has exactly one page, created atomically during registration.
+- There is no endpoint to create or list pages. The page is retrieved directly via `GET /api/v1/me/page`.
 
-### 6.3 Get my page (with blocks)
-- `GET /api/v1/pages/{pageId}`
+### 6.1 Get my page (with blocks)
+- `GET /api/v1/me/page`
 
 Response 200:
 ```json
@@ -530,7 +514,9 @@ Response 200:
           "jobTitle": "Developpeur full stack",
           "bio": "Optional",
           "avatarUrl": null
-        }
+        },
+        "createdAt": "2026-01-15T18:00:00.000Z",
+        "updatedAt": "2026-01-15T18:00:00.000Z"
       }
     ],
     "createdAt": "2026-01-15T18:00:00.000Z",
@@ -540,18 +526,31 @@ Response 200:
 ```
 
 Errors:
-- 404 `PAGE_NOT_FOUND`
-- 403 `FORBIDDEN`
+- 401 `UNAUTHORIZED`
 
-### 6.4 Delete page
-- `DELETE /api/v1/pages/{pageId}`
+### 6.2 Update page visibility
+- `PATCH /api/v1/me/page`
 
-Response:
-- 204 no content
+Request:
+```json
+{ "isPublic": false }
+```
+
+Response 200:
+```json
+{
+  "page": {
+    "id": "pag_123",
+    "username": "lazarefortune",
+    "isPublic": false,
+    "createdAt": "2026-01-15T18:00:00.000Z",
+    "updatedAt": "2026-01-15T18:15:00.000Z"
+  }
+}
+```
 
 Errors:
-- 404 `PAGE_NOT_FOUND`
-- 403 `FORBIDDEN`
+- 401 `UNAUTHORIZED`
 
 ---
 
@@ -595,6 +594,10 @@ Errors:
 ---
 
 ## 8) Blocks API (authenticated)
+
+Notes:
+- All block endpoints use `{pageId}` for ownership verification.
+- The authenticated user must own the page.
 
 ### 8.1 Create block
 - `POST /api/v1/pages/{pageId}/blocks`
@@ -660,7 +663,7 @@ Errors:
 - `DELETE /api/v1/pages/{pageId}/blocks/{blockId}`
 
 Response:
-- 204 no content
+- 204 No Content
 
 Errors:
 - 404 `BLOCK_NOT_FOUND`
@@ -669,6 +672,12 @@ Errors:
 
 ### 8.4 Bulk replace blocks (recommended for Save)
 - `PUT /api/v1/pages/{pageId}/blocks`
+
+Notes:
+- Replaces all blocks for the page in a single atomic operation.
+- Must include exactly one `header` block.
+- Order is persisted as provided.
+- `clientKey` is used by the frontend to map response IDs back to local state. Not persisted.
 
 Request:
 ```json
@@ -701,6 +710,7 @@ Response 200:
   "blocks": [
     {
       "id": "blk_1",
+      "clientKey": "tmp_1",
       "type": "header",
       "order": 0,
       "data": {
@@ -714,6 +724,7 @@ Response 200:
     },
     {
       "id": "blk_2",
+      "clientKey": "tmp_2",
       "type": "text",
       "order": 1,
       "data": { "text": "Hello" },
@@ -723,10 +734,6 @@ Response 200:
   ]
 }
 ```
-
-Rules:
-- Must contain exactly one `header` block.
-- Order is persisted as provided.
 
 Errors:
 - 422 `HEADER_REQUIRED`
@@ -806,7 +813,7 @@ Response 200:
 
 ## 11) Authorization summary
 
-Public endpoints:
+Public endpoints (no auth required):
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/verify-email`
 - `POST /api/v1/auth/resend-verification-code`
@@ -814,6 +821,7 @@ Public endpoints:
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/password/forgot`
 - `POST /api/v1/auth/password/reset`
+- `GET /api/v1/usernames/check`
 - `GET /api/v1/public/pages/{username}`
 - `GET /api/v1/health`
 
@@ -821,39 +829,43 @@ Authenticated endpoints (access token required):
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/me`
 - `DELETE /api/v1/me`
-- `GET/POST/DELETE /api/v1/pages...`
+- `GET /api/v1/me/page`
+- `PATCH /api/v1/me/page`
 - `PATCH /api/v1/pages/{pageId}/username`
-- `POST/PATCH/DELETE/PUT /api/v1/pages/{pageId}/blocks...`
-- `GET/POST /api/v1/technologies`
-- `GET /api/v1/usernames/check`
+- `POST /api/v1/pages/{pageId}/blocks`
+- `PATCH /api/v1/pages/{pageId}/blocks/{blockId}`
+- `DELETE /api/v1/pages/{pageId}/blocks/{blockId}`
+- `PUT /api/v1/pages/{pageId}/blocks`
+- `GET /api/v1/technologies`
+- `POST /api/v1/technologies`
 
 Ownership rule:
-- Users can only access/modify their own pages and blocks.
+- Users can only access or modify their own page and blocks.
 
 ---
 
 ## 12) Validation summary
 
 Auth:
-- Email must be valid format.
-- Password must be at least 8 chars and include upper/lower/digit/special.
-- Verify code must be 6 chars.
+- `email`: valid email format.
+- `password`: min 8 chars, must include uppercase, lowercase, digit, and special character.
+- `username` at register: 3-30 chars, lowercase letters, digits, `_`, `-` only.
+- Verification code: exactly 6 numeric characters.
 
-Pages:
-- `isPublic` is optional boolean at creation.
-- Username update accepts 3-30 chars: lowercase letters, digits, `_`, `-`.
-- Page listing pagination: `page >= 1`, `1 <= limit <= 100`.
+Page:
+- `isPublic`: optional boolean, defaults to `true`.
+- `username` update: 3-30 chars, lowercase letters, digits, `_`, `-` only.
 
 Blocks:
-- `type` must be one of supported enum values.
-- `order` must be integer >= 0.
-- `data` must be an object.
-- Bulk replace requires exactly one header.
+- `type`: must be one of `header | text | link | separator | project | technologies`.
+- `order`: integer >= 0.
+- `data`: must be a non-null object.
+- Bulk replace: must contain exactly one `header` block.
 
 Technologies:
-- `name`: required string, max 50.
-- `logoUrl`: optional valid URL.
-- Technologies listing pagination: `page >= 1`, `1 <= limit <= 100`.
+- `name`: required string, max 50 chars.
+- `logoUrl`: optional, must be a valid URL if provided.
+- Listing pagination: `page >= 1`, `1 <= limit <= 100`.
 
 ---
 
@@ -861,6 +873,7 @@ Technologies:
 
 Auth:
 - `EMAIL_ALREADY_EXISTS`
+- `USERNAME_TAKEN`
 - `INVALID_CREDENTIALS`
 - `EMAIL_NOT_VERIFIED`
 - `INVALID_CODE`
@@ -873,10 +886,9 @@ Auth:
 Users:
 - `USER_NOT_FOUND`
 
-Pages/Blocks:
+Pages / Blocks:
 - `PAGE_NOT_FOUND`
 - `PAGE_NOT_PUBLIC`
-- `USERNAME_TAKEN`
 - `BLOCK_NOT_FOUND`
 - `INVALID_BLOCK_TYPE`
 - `INVALID_BLOCK_DATA`
