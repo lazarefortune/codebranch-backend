@@ -1,0 +1,16 @@
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-codebranch}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-codebranch}
+      MYSQL_USER: ${MYSQL_USER:-codebranch}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-codebranch}
+    ports:
+      - '${MYSQL_PORT:-3306}:3306'
+    volumes:
+      - codebranch_mysql_data:/var/lib/mysql
+
+volumes:
+  codebranch_mysql_data:
