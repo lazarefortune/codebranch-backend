@@ -1,0 +1,9 @@
+packages:
+  - '.'
+
+allowBuilds:
+  '@nestjs/core': false
+  '@prisma/engines': true
+  argon2: true
+  prisma: true
+  unrs-resolver: false

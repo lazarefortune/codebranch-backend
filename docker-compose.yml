@@ -1,0 +1,35 @@
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-codebranch}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-codebranch}
+      MYSQL_USER: ${MYSQL_USER:-codebranch}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-codebranch}
+    ports:
+      - '${MYSQL_PORT:-3306}:3306'
+    volumes:
+      - codebranch_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-uroot', '-p${MYSQL_ROOT_PASSWORD:-codebranch}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: ${PORT:-4000}
+      DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD:-codebranch}@db:3306/${MYSQL_DATABASE:-codebranch}
+    ports:
+      - '${PORT:-4000}:4000'
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  codebranch_mysql_data:
