@@ -1,0 +1,7 @@
+version: 2
+
+secret:
+  ignored-paths:
+    # e2e test fixtures only: dummy passwords used against a local/CI-only
+    # test database, never real credentials.
+    - test/**
